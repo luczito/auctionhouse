@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package token;
+option go_package = "https://github.com/luczito/auctionhouse;token";
+
+service Auction{
+    rpc BidOnItem(Bid) returns (Ack){}
+    rpc CheckStatus(Request) returns (Status){}
+}
+
+message Bid{
+    int32 Userid = 1;
+    int32 ItemId = 2;
+    int32 Amount = 3;
+}
+
+message Ack{
+    string Status = 1;
+}
+
+message Request{
+    int32 ItemId = 1;
+}
+
+message Status{
+    string status = 1;
+}
