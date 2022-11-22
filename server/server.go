@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+
+	token "github.com/luczito/auctionhouse/proto"
 )
 
 //server file, holds the server struct and methods for the servers (multiple).
@@ -10,7 +12,7 @@ type Server struct {
 	isPrimary   bool
 	port        string
 	name        string
-	clients     map[string]
+	clients     map[string]token.AuctionClient
 	clientNames map[string]string
 	mutex       sync.Mutex
 	auctions    map[string]string
@@ -32,10 +34,10 @@ func endAuction() {
 	//ends aution after time runs out
 }
 
-func (s *server) connect() {
+func (s *Server) connect() {
 
 }
 
-func start(s *server) {
+func start(s *Server) {
 
 }
