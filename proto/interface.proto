@@ -6,6 +6,7 @@ option go_package = "https://github.com/luczito/auctionhouse;token";
 service Auction{
     rpc BidOnItem(Bid) returns (Ack){}
     rpc CheckStatus(Request) returns (Status){}
+    rpc Result(AuctionResult) returns (Response){}
 }
 
 message Bid{
@@ -24,4 +25,12 @@ message Request{
 
 message Status{
     string status = 1;
+}
+
+message AuctionResult{
+    string winner = 1;
+}
+
+message Response{
+    string response = 1;
 }

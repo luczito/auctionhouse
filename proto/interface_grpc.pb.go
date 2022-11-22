@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 type AuctionClient interface {
 	BidOnItem(ctx context.Context, in *Bid, opts ...grpc.CallOption) (*Ack, error)
 	CheckStatus(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Status, error)
+	Result(ctx context.Context, in *AuctionResult, opts ...grpc.CallOption) (*Response, error)
 }
 
 type auctionClient struct {
@@ -48,12 +49,22 @@ func (c *auctionClient) CheckStatus(ctx context.Context, in *Request, opts ...gr
 	return out, nil
 }
 
+func (c *auctionClient) Result(ctx context.Context, in *AuctionResult, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/token.Auction/Result", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuctionServer is the server API for Auction service.
 // All implementations must embed UnimplementedAuctionServer
 // for forward compatibility
 type AuctionServer interface {
 	BidOnItem(context.Context, *Bid) (*Ack, error)
 	CheckStatus(context.Context, *Request) (*Status, error)
+	Result(context.Context, *AuctionResult) (*Response, error)
 	mustEmbedUnimplementedAuctionServer()
 }
 
@@ -66,6 +77,9 @@ func (UnimplementedAuctionServer) BidOnItem(context.Context, *Bid) (*Ack, error)
 }
 func (UnimplementedAuctionServer) CheckStatus(context.Context, *Request) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckStatus not implemented")
+}
+func (UnimplementedAuctionServer) Result(context.Context, *AuctionResult) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Result not implemented")
 }
 func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
 
@@ -116,6 +130,24 @@ func _Auction_CheckStatus_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auction_Result_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuctionResult)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuctionServer).Result(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/token.Auction/Result",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuctionServer).Result(ctx, req.(*AuctionResult))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auction_ServiceDesc is the grpc.ServiceDesc for Auction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -130,6 +162,10 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CheckStatus",
 			Handler:    _Auction_CheckStatus_Handler,
+		},
+		{
+			MethodName: "Result",
+			Handler:    _Auction_Result_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
