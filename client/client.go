@@ -2,10 +2,14 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+
+	token "github.com/luczito/auctionhouse/proto"
+	"google.golang.org/grpc"
 )
 
 //client file, holds the client struct and the methods of client.
@@ -24,12 +28,62 @@ func parse() (string, error) {
 	return input, nil
 }
 
-func listen() {
-
+func listen(clientConnection token.Auction_ConnectClient, c *Client) {
+	for {
+		msg, err := clientConnection.Recv()
+		if err != nil {
+			log.Fatalf("Unable to recieve the message %v", err)
+		}
+		fmt.Printf("%v: %v\n", msg.Name, msg.Msg)
+	}
 }
 
 func start(c *Client) {
+	var clientConnection token.Auction_ConnectClient
 
+	for {
+		connection, err := grpc.Dial(c.name+":"+c.port, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("Unable to connect to the server %v", err)
+		}
+
+		client := token.NewAuctionClient(connection)
+
+		clientConnection, err = client.Connect(context.Background())
+		if err != nil {
+			log.Fatalf("Unable to connect to the server %v", err)
+		}
+
+		clientConnection.Send(&token.ClientMsg{
+			Name: c.name,
+		})
+
+		message, err := clientConnection.Recv()
+		if err == nil {
+			fmt.Printf("%v: %v\n", message.Name, message.Msg)
+			break
+		}
+		fmt.Println("Username already in use, please try again.")
+	}
+
+	go listen(clientConnection, c)
+
+	for {
+		input, err := parse()
+		if err != nil {
+			log.Fatalf("Unable to retrieve the user input")
+		}
+
+		if input == "exit" {
+			break
+		}
+
+		clientConnection.Send(&token.ClientMsg{
+			Name: c.name,
+			Msg:  input,
+		})
+	}
+	clientConnection.CloseSend()
 }
 
 func seeAuctions() {

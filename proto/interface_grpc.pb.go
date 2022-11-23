@@ -18,6 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuctionClient interface {
+	Connect(ctx context.Context, opts ...grpc.CallOption) (Auction_ConnectClient, error)
 	BidOnItem(ctx context.Context, in *Bid, opts ...grpc.CallOption) (*Ack, error)
 	CheckStatus(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Status, error)
 	Result(ctx context.Context, in *AuctionResult, opts ...grpc.CallOption) (*Response, error)
@@ -29,6 +30,37 @@ type auctionClient struct {
 
 func NewAuctionClient(cc grpc.ClientConnInterface) AuctionClient {
 	return &auctionClient{cc}
+}
+
+func (c *auctionClient) Connect(ctx context.Context, opts ...grpc.CallOption) (Auction_ConnectClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Auction_ServiceDesc.Streams[0], "/token.Auction/Connect", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &auctionConnectClient{stream}
+	return x, nil
+}
+
+type Auction_ConnectClient interface {
+	Send(*ClientMsg) error
+	Recv() (*ServerMsg, error)
+	grpc.ClientStream
+}
+
+type auctionConnectClient struct {
+	grpc.ClientStream
+}
+
+func (x *auctionConnectClient) Send(m *ClientMsg) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *auctionConnectClient) Recv() (*ServerMsg, error) {
+	m := new(ServerMsg)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *auctionClient) BidOnItem(ctx context.Context, in *Bid, opts ...grpc.CallOption) (*Ack, error) {
@@ -62,6 +94,7 @@ func (c *auctionClient) Result(ctx context.Context, in *AuctionResult, opts ...g
 // All implementations must embed UnimplementedAuctionServer
 // for forward compatibility
 type AuctionServer interface {
+	Connect(Auction_ConnectServer) error
 	BidOnItem(context.Context, *Bid) (*Ack, error)
 	CheckStatus(context.Context, *Request) (*Status, error)
 	Result(context.Context, *AuctionResult) (*Response, error)
@@ -72,6 +105,9 @@ type AuctionServer interface {
 type UnimplementedAuctionServer struct {
 }
 
+func (UnimplementedAuctionServer) Connect(Auction_ConnectServer) error {
+	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
+}
 func (UnimplementedAuctionServer) BidOnItem(context.Context, *Bid) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BidOnItem not implemented")
 }
@@ -92,6 +128,32 @@ type UnsafeAuctionServer interface {
 
 func RegisterAuctionServer(s grpc.ServiceRegistrar, srv AuctionServer) {
 	s.RegisterService(&Auction_ServiceDesc, srv)
+}
+
+func _Auction_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(AuctionServer).Connect(&auctionConnectServer{stream})
+}
+
+type Auction_ConnectServer interface {
+	Send(*ServerMsg) error
+	Recv() (*ClientMsg, error)
+	grpc.ServerStream
+}
+
+type auctionConnectServer struct {
+	grpc.ServerStream
+}
+
+func (x *auctionConnectServer) Send(m *ServerMsg) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *auctionConnectServer) Recv() (*ClientMsg, error) {
+	m := new(ClientMsg)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _Auction_BidOnItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -168,6 +230,13 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Auction_Result_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Connect",
+			Handler:       _Auction_Connect_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "interface.proto",
 }

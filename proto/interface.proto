@@ -4,9 +4,20 @@ package token;
 option go_package = "https://github.com/luczito/auctionhouse;token";
 
 service Auction{
+    rpc Connect(stream ClientMsg) returns (stream ServerMsg);
     rpc BidOnItem(Bid) returns (Ack){}
     rpc CheckStatus(Request) returns (Status){}
     rpc Result(AuctionResult) returns (Response){}
+}
+
+message ClientMsg{
+    string msg = 1;
+    string name = 2;
+}
+
+message ServerMsg{
+    string msg = 1;
+    string name = 2;
 }
 
 message Bid{
