@@ -4,26 +4,43 @@ package token;
 option go_package = "https://github.com/luczito/auctionhouse;token";
 
 service Auction{
-    rpc Connect(stream ClientMsg) returns (stream ServerMsg);
+    rpc Election(ElectionRequest) returns (Ack_){}
+    rpc Coordination(Coord) returns (Ack_){}
     rpc BidOnItem(Bid) returns (Ack){}
     rpc CheckStatus(Request) returns (Status){}
     rpc Result(AuctionResult) returns (Response){}
+    rpc Update(Data) returns (Ack_){}
+}
+message Data{
+    CurrentBid currentBid = 1;
+    int32 timeRemaining = 2;
+    repeated int32 Clients = 3;
 }
 
-message ClientMsg{
-    string msg = 1;
-    string name = 2;
+message CurrentBid{
+    int32 id = 1;
+    int32 amount = 2;
 }
 
-message ServerMsg{
-    string msg = 1;
-    string name = 2;
+message ElectionRequest{
+    int32 id = 1;
 }
+
+message Coord{
+    int32 id = 1;
+}
+
+message Ack_{}
 
 message Bid{
     int32 Userid = 1;
     int32 ItemId = 2;
     int32 Amount = 3;
+}
+
+message Amount{
+    int32 Amount = 1;
+    int32 Id = 2;
 }
 
 message Ack{
@@ -39,9 +56,15 @@ message Status{
 }
 
 message AuctionResult{
-    string winner = 1;
+    int32 id = 1;
+    int32 amount = 2;
 }
 
 message Response{
-    string response = 1;
+    int32 TimeRemaining = 1;
+
+    oneof outcome{
+        AuctionResult auctionResult = 2;
+        CurrentBid currentBid = 3;
+    }
 }
