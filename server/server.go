@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -16,30 +15,28 @@ import (
 
 var port = flag.Int("port", 5000, "port") //port for the node default 5000
 
-// node struct.
+// server struct.
 type Server struct {
 	token.UnimplementedAuctionServer
-	id            int32 //port
-	primaryId     int32 //primary server port
-	clients       map[int32]token.AuctionClient
-	servers       map[int32]token.AuctionClient
-	ctx           context.Context
-	currentBid    Bid
-	timeRemaining int32
+	id                  int32 //port
+	primaryId           int32 //primary server port
+	clients             map[int32]token.AuctionClient
+	servers             map[int32]token.AuctionClient
+	ctx                 context.Context
+	currentBid          Bid
+	timeRemaining       int32
+	heartbeatTimeout    chan bool
+	coordinationTimeout chan bool
+	expectingAnswer     bool
 }
 
+// bid struct
 type Bid struct {
 	id     int32
 	amount int32
 }
 
 func main() {
-	f, err := os.OpenFile("log.server", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v\n", err)
-	}
-	defer f.Close()
-	log.SetOutput(f)
 
 	flag.Parse() //set port with -port in the commandline when running the program
 
@@ -48,8 +45,16 @@ func main() {
 
 	var port = int32(*port)
 
-	//create a node for this proccess
-	n := &Server{
+	//creates a log file for each server
+	f, err := os.OpenFile(fmt.Sprintf("log-%d.txt", port), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v\n", err)
+	}
+	defer f.Close()
+	log.SetOutput(f)
+
+	//create a server for this proccess
+	s := &Server{
 		id:      port,
 		clients: make(map[int32]token.AuctionClient),
 		servers: make(map[int32]token.AuctionClient),
@@ -62,11 +67,11 @@ func main() {
 		log.Fatalf("Failed to listen on port: %v\n", err)
 	}
 
-	log.Printf("Node created on port: %d\n", n.id)
-	fmt.Printf("Node created on port %v\n", n.id)
+	log.Printf("Node created on port: %d\n", s.id)
+	fmt.Printf("Node created on port %v\n", s.id)
 
 	grpcServer := grpc.NewServer()
-	token.RegisterAuctionServer(grpcServer, n)
+	token.RegisterAuctionServer(grpcServer, s)
 
 	//serve on the listener
 	go func() {
@@ -75,13 +80,13 @@ func main() {
 		}
 	}()
 
-	//for loop to dial all other nodes in the network, if this loop is increased the number of nodes in the network is aswell
+	//for loop to dial all other servers in the network, if this loop is increased the number of servers have to be increased aswell
 	for i := 0; i < 3; i++ {
 		nodePort := int32(5000 + i)
-		if nodePort == n.id {
+		if nodePort == s.id {
 			continue
 		}
-		if nodePort < 5003 {
+		if nodePort < int32(5003) {
 			var conn *grpc.ClientConn
 			log.Printf("Trying to dial: %v\n", nodePort)
 			conn, err := grpc.Dial(fmt.Sprintf(":%v", nodePort), grpc.WithInsecure(), grpc.WithBlock())
@@ -93,40 +98,32 @@ func main() {
 			defer conn.Close()
 			log.Printf("Succes connecting to: %v\n", nodePort)
 			c := token.NewAuctionClient(conn)
-			n.servers[nodePort] = c
-		} // else {
-		// 	var conn *grpc.ClientConn
-		// 	log.Printf("Trying to dial: %v\n", nodePort)
-		// 	conn, err := grpc.Dial(fmt.Sprintf(":%v", nodePort), grpc.WithInsecure(), grpc.WithBlock())
-
-		// 	if err != nil {
-		// 		log.Fatalf("Could not connect: %v\n", err)
-		// 	}
-
-		// 	defer conn.Close()
-		// 	log.Printf("Succes connecting to: %v\n", nodePort)
-		// 	c := token.NewAuctionClient(conn)
-		// 	n.clients[nodePort] = c
-		// }
+			s.servers[nodePort] = c
+		}
 	}
 
-	log.Printf("%v is connected to %v other nodes\n", n.id, len(n.clients))
-	fmt.Printf("%v is connected to %v other nodes\n", n.id, len(n.clients))
+	log.Printf("%v is connected to %v other servers\n", s.id, len(s.servers))
+	fmt.Printf("%v is connected to %v other servers\n", s.id, len(s.servers))
 
-	scanner := bufio.NewScanner(os.Stdin)
-
-	//scanner that requests access from the given node when something is written in the terminal.
-	for scanner.Scan() {
-
+	s.CallElection()
+	//heartbeat loop
+	for {
+		time.Sleep(time.Second * 5)
+		s.loop()
 	}
 }
+
+// election listener.
 func (s *Server) Election(ctx context.Context, input *token.ElectionRequest) (*token.Ack_, error) {
+	log.Printf("Recieved election call, calling election\n")
 	s.CallElection()
 
 	return &token.Ack_{}, nil
 }
 
+// calls an election to all nodes with a higher id than oneself. then calls coordination if the node is the highest id
 func (s *Server) CallElection() {
+	log.Printf("Sending election to higher nodes(servers)\n")
 	request := &token.ElectionRequest{
 		Id: s.id,
 	}
@@ -136,8 +133,6 @@ func (s *Server) CallElection() {
 		if id > s.id {
 			response, err := server.Election(s.ctx, request)
 
-			time.Sleep(time.Second * 5)
-
 			if response == nil {
 				log.Printf("Server %v has crashed\n", id)
 				votes--
@@ -146,19 +141,37 @@ func (s *Server) CallElection() {
 				log.Printf("Something went wrong with server: %v, %v\n", id, err)
 				votes--
 			}
+		} else if id < s.id {
+			votes--
 		}
 	}
 	if votes == 0 {
 		s.primaryId = s.id
 		s.SendCoordination()
+	} else {
+		s.CoordinationTimeout(10)
 	}
 }
 
-func (s *Server) reply() {
+// func to timeout the wait for a coordination from another node.
+func (s *Server) CoordinationTimeout(seconds int) {
+	s.expectingAnswer = true
 
+	select {
+	case <-s.coordinationTimeout:
+		log.Println("New primary lives")
+	case <-time.After(time.Duration(seconds) * time.Second):
+		// primary dead
+		log.Println("Coordination timeout, call new election")
+		s.CallElection()
+	}
+
+	s.expectingAnswer = false
 }
 
+// sends coordination to other servers in the network
 func (s *Server) SendCoordination() {
+	log.Printf("Sending coordination to backups\n")
 	coordination := &token.Coord{
 		Id: s.id,
 	}
@@ -173,7 +186,8 @@ func (s *Server) SendCoordination() {
 	}
 }
 
-func (s *Server) Coordinate(ctx context.Context, input *token.Coord) (*token.Ack_, error) {
+// listener for sendcoordination function
+func (s *Server) Coordination(ctx context.Context, input *token.Coord) (*token.Ack_, error) {
 	port := input.Id
 
 	s.primaryId = port
@@ -186,7 +200,7 @@ func (s *Server) Coordinate(ctx context.Context, input *token.Coord) (*token.Ack
 		conn, err := grpc.Dial(fmt.Sprintf(":%v", port), grpc.WithInsecure(), grpc.WithBlock())
 
 		if err != nil {
-			log.Fatalf("could not reconnect: %v", err)
+			log.Fatalf("could not reconnect: %v\n", err)
 		}
 
 		defer conn.Close()
@@ -215,8 +229,9 @@ func (s *Server) Coordinate(ctx context.Context, input *token.Coord) (*token.Ack
 	return &token.Ack_{}, nil
 }
 
+// listens and recieves updates from primary server.
 func (s *Server) Update(ctx context.Context, data *token.Data) (*token.Ack_, error) {
-	log.Printf("Recieved an update for internal data")
+	log.Printf("Recieved an update for internal data\n")
 
 	s.currentBid.id = data.CurrentBid.Id
 	s.currentBid.amount = data.CurrentBid.Amount
@@ -239,7 +254,9 @@ func (s *Server) Update(ctx context.Context, data *token.Data) (*token.Ack_, err
 	return &token.Ack_{}, nil
 }
 
+// updates the other servers in the network
 func (s *Server) UpdateServers() error {
+	log.Printf("Sending update to backups\n")
 	ports := make([]int32, 0, len(s.clients))
 
 	for port := range s.clients {
@@ -259,6 +276,7 @@ func (s *Server) UpdateServers() error {
 	return nil
 }
 
+// listens and registers a bid from a client.
 func (s *Server) Bid(ctx context.Context, input *token.Amount) (*token.Ack, error) {
 	var message string
 	port := input.Id
@@ -267,7 +285,7 @@ func (s *Server) Bid(ctx context.Context, input *token.Amount) (*token.Ack, erro
 		conn, err := grpc.Dial(fmt.Sprintf(":%v", port), grpc.WithInsecure(), grpc.WithBlock())
 
 		if err != nil {
-			log.Fatalf("could not reconnect: %v", err)
+			log.Fatalf("could not reconnect: %v\n", err)
 		}
 
 		// defer conn.Close()
@@ -280,10 +298,13 @@ func (s *Server) Bid(ctx context.Context, input *token.Amount) (*token.Ack, erro
 		s.currentBid.amount = input.Amount
 		s.currentBid.id = input.Id
 		message = "Bid accepted as the new highest bid."
+		log.Printf("Bid accepted as the new highest bid.\n")
 		if err := s.UpdateServers(); err != nil {
 			message = "Database failure"
+			log.Fatalf("Database failure\n")
 		}
 	} else {
+		log.Printf("Bid rejected, lower than the current highest bid.\n")
 		message = "Bid rejected, lower than the current highest bid."
 	}
 
@@ -294,9 +315,11 @@ func (s *Server) Bid(ctx context.Context, input *token.Amount) (*token.Ack, erro
 	return reply, nil
 }
 
+// when the auction is over this method will return the winner and the amount
 func (s *Server) Result(ctx context.Context, input *token.AuctionResult) (*token.Response, error) {
 	reply := &token.Response{}
 	if s.timeRemaining == 0 {
+		log.Printf("Auction over.\n")
 		reply.Outcome = &token.Response_AuctionResult{
 			AuctionResult: &token.AuctionResult{
 				Id:     s.currentBid.id,
@@ -304,6 +327,7 @@ func (s *Server) Result(ctx context.Context, input *token.AuctionResult) (*token
 			},
 		}
 	} else {
+		log.Printf("Auction not over resuming.\n")
 		reply.Outcome = &token.Response_CurrentBid{
 			CurrentBid: &token.CurrentBid{
 				Id:     s.currentBid.id,
@@ -313,4 +337,92 @@ func (s *Server) Result(ctx context.Context, input *token.AuctionResult) (*token
 	}
 
 	return reply, nil
+}
+
+// func to listen for a heartbeat from the primary server.
+func (s *Server) Heartbeat(ctx context.Context, beat *token.Beat) (*token.Ack_, error) {
+	log.Printf("Recieved heartbeat from primary, sending reply\n")
+
+	s.heartbeatTimeout <- true
+
+	reply := &token.Ack_{}
+
+	return reply, nil
+}
+
+// func to send a heartbeat to all servers AND clients in the network.
+func (s *Server) SendHeartbeat() {
+	time.Sleep(time.Second * 5)
+
+	log.Printf("Sending heartbeat to backups\n")
+	for _, server := range s.servers {
+		_, err := server.Heartbeat(s.ctx, &token.Beat{})
+		if err != nil {
+			log.Printf("%v", err)
+		}
+	}
+	for _, client := range s.clients {
+		_, err := client.Heartbeat(s.ctx, &token.Beat{})
+		if err != nil {
+			log.Printf("%v", err)
+		}
+	}
+
+	time.Sleep(time.Second * 2)
+}
+
+// timeout func for the heartbeat, will timeout after 5 seconds with no answer.
+func (s *Server) HeartbeatTimeout(reset <-chan bool, seconds int) {
+	select {
+	case <-reset:
+		fmt.Println("Received heartbeat from primary")
+		log.Println("Received heartbeat from primary")
+	case <-time.After(time.Duration(seconds) * time.Second):
+		// primary crashed
+		fmt.Println("primary is dead recalling election")
+		log.Println("primary is dead recalling election")
+		delete(s.servers, s.primaryId)
+		s.CallElection()
+	}
+}
+
+// main loop.
+func (s *Server) loop() {
+	for {
+		if s.primaryId == s.id {
+			s.LeaderLoop()
+		} else {
+			s.BackupLoop()
+		}
+	}
+}
+
+// loop for the primary server.
+func (s *Server) LeaderLoop() {
+	log.Printf("Leader loop running\n")
+
+	s.SendCoordination()
+
+	for {
+		if s.id != s.primaryId {
+			log.Printf("No longer primary id breaking.\n")
+			return
+		}
+
+		s.SendHeartbeat()
+	}
+}
+
+// loop for the backup servers.
+func (s *Server) BackupLoop() {
+	log.Printf("Backup loop running\n")
+
+	for {
+		if s.id == s.primaryId {
+			log.Printf("id is primary id, breaking out of the loop\n")
+			s.heartbeatTimeout <- true
+			return
+		}
+		s.HeartbeatTimeout(s.heartbeatTimeout, 5)
+	}
 }

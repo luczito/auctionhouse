@@ -10,7 +10,10 @@ service Auction{
     rpc CheckStatus(Request) returns (Status){}
     rpc Result(AuctionResult) returns (Response){}
     rpc Update(Data) returns (Ack_){}
+    rpc Heartbeat(Beat) returns (Ack_){}
 }
+message Beat{}
+
 message Data{
     CurrentBid currentBid = 1;
     int32 timeRemaining = 2;

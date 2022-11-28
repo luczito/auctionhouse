@@ -1,0 +1,18 @@
+2022/11/28 17:35:58 Node created on port: 5000
+2022/11/28 17:35:58 Trying to dial: 5001
+2022/11/28 17:36:00 Succes connecting to: 5001
+2022/11/28 17:36:00 Trying to dial: 5002
+2022/11/28 17:36:01 Saving new client
+2022/11/28 17:36:01 Succes connecting to: 5002
+2022/11/28 17:36:01 5000 is connected to 2 other servers
+2022/11/28 17:36:01 Sending election to higher nodes(servers)
+2022/11/28 17:36:11 Recieved heartbeat from primary, sending reply
+2022/11/28 17:37:36 Node created on port: 5000
+2022/11/28 17:37:36 Trying to dial: 5001
+2022/11/28 17:37:39 Succes connecting to: 5001
+2022/11/28 17:37:39 Trying to dial: 5002
+2022/11/28 17:37:40 Saving new client
+2022/11/28 17:37:40 Succes connecting to: 5002
+2022/11/28 17:37:40 5000 is connected to 2 other servers
+2022/11/28 17:37:40 Sending election to higher nodes(servers)
+2022/11/28 17:37:50 Recieved heartbeat from primary, sending reply
