@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// command line args
 var startPort = flag.Int("port", 5000, "port")
 var maxManagers = flag.Int("managers", 3, "Max manager count")
 
@@ -45,11 +46,12 @@ func main() {
 		log.Fatalln("Could not find port(20 tries).")
 	}
 
+	//setup ip
 	ip := fmt.Sprintf("127.0.0.1:%d", port)
 	fmt.Println(ip)
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("address", ip))
 
-	// set Log output, one log for each node
+	// set Log output, one log for each manager
 	f, err := os.OpenFile(fmt.Sprintf("manager-log-%s.txt", ip), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v\n", err)
@@ -57,7 +59,7 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f)
 
-	//create a server for this proccess
+	//create a manager for this proccess
 	m := &Manager{
 		Id:                  ip,
 		Managers:            make(map[string]token.ManagerClient),
@@ -89,6 +91,7 @@ func main() {
 
 	log.Printf("my ip is: %s\n", ip)
 
+	//dial the other managers
 	for i := 0; i < *maxManagers; i++ {
 		if port == managerPort {
 			managerPort++
@@ -117,6 +120,7 @@ func main() {
 		managerPort++
 	}
 
+	//sleep then run the main loop.
 	<-time.After(3 * time.Second)
 
 	m.MainLoop()

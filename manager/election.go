@@ -19,11 +19,12 @@ func (m *Manager) Election(ctx context.Context, input *token.ElectionRequest) (*
 	return &token.Ack{}, nil
 }
 
-// calls an election to all nodes with a higher id than oneself. then calls coordination if the node is the highest id
+// calls an election to all managers with a higher id than oneself. then calls coordination if this manager is the highest id
 func (m *Manager) CallElection() {
 	log.Printf("Sending election to higher Managers\n")
 	votes := len(m.Managers)
 
+	//call the other managers
 	for id, Manager := range m.Managers {
 		if id < m.Id {
 			votes--
@@ -40,23 +41,23 @@ func (m *Manager) CallElection() {
 	}
 
 	log.Printf("need %v votes to be elected\n", votes)
-
+	//check if oneself is highest according to the votes
 	if votes == 0 {
 		m.PrimaryId = m.Id
 		log.Printf("im the captain now\n")
-		//s.SendCoordination()
 	} else {
 		log.Printf("Waiting for coordination from primary")
 		m.CoordinationTimeout(5000)
 	}
 }
 
-// func to timeout the wait for a coordination from another node.
+// func to timeout the coordination wait from the coordinator.
 func (m *Manager) CoordinationTimeout(ms int) {
 	m.ExpectingAnswer = true
 
 	select {
 	case <-m.TimeoutCoordination:
+		//primary alive
 		log.Println("New primary lives")
 	case <-time.After(time.Duration(ms) * time.Millisecond):
 		// primary dead
@@ -89,10 +90,9 @@ func (m *Manager) SendCoordination() {
 func (m *Manager) Coordination(ctx context.Context, input *token.Coord) (*token.Ack, error) {
 	var addr string
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		// log.Println(md)
-		// log.Printf("[Coordinate]: address %v\n", addr)
 		addr = md.Get("address")[0]
 	}
+	//were i the old leader?
 	wasLeader := (m.Id == m.PrimaryId && m.Id != addr)
 
 	m.PrimaryId = addr
@@ -117,6 +117,7 @@ func (m *Manager) Coordination(ctx context.Context, input *token.Coord) (*token.
 		m.Managers[addr] = c
 	}
 
+	//if i were the old leader then backup the data to the new leader
 	if wasLeader {
 		addrs := make([]string, len(m.Clients))
 
