@@ -14,302 +14,352 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// AuctionClient is the client API for Auction service.
+// ManagerClient is the client API for Manager service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type AuctionClient interface {
-	Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*Ack_, error)
-	Coordination(ctx context.Context, in *Coord, opts ...grpc.CallOption) (*Ack_, error)
-	BidOnItem(ctx context.Context, in *Bid, opts ...grpc.CallOption) (*Ack, error)
-	CheckStatus(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Status, error)
-	Result(ctx context.Context, in *AuctionResult, opts ...grpc.CallOption) (*Response, error)
-	Update(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Ack_, error)
-	Heartbeat(ctx context.Context, in *Beat, opts ...grpc.CallOption) (*Ack_, error)
+type ManagerClient interface {
+	Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*Ack, error)
+	Coordination(ctx context.Context, in *Coord, opts ...grpc.CallOption) (*Ack, error)
+	Bid(ctx context.Context, in *Amount, opts ...grpc.CallOption) (*Ack, error)
+	Result(ctx context.Context, in *Void, opts ...grpc.CallOption) (*Outcome, error)
+	Update(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Ack, error)
+	Heartbeat(ctx context.Context, in *Beat, opts ...grpc.CallOption) (*Ack, error)
 }
 
-type auctionClient struct {
+type managerClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewAuctionClient(cc grpc.ClientConnInterface) AuctionClient {
-	return &auctionClient{cc}
+func NewManagerClient(cc grpc.ClientConnInterface) ManagerClient {
+	return &managerClient{cc}
 }
 
-func (c *auctionClient) Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*Ack_, error) {
-	out := new(Ack_)
-	err := c.cc.Invoke(ctx, "/token.Auction/Election", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *auctionClient) Coordination(ctx context.Context, in *Coord, opts ...grpc.CallOption) (*Ack_, error) {
-	out := new(Ack_)
-	err := c.cc.Invoke(ctx, "/token.Auction/Coordination", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *auctionClient) BidOnItem(ctx context.Context, in *Bid, opts ...grpc.CallOption) (*Ack, error) {
+func (c *managerClient) Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*Ack, error) {
 	out := new(Ack)
-	err := c.cc.Invoke(ctx, "/token.Auction/BidOnItem", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/token.Manager/Election", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *auctionClient) CheckStatus(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Status, error) {
-	out := new(Status)
-	err := c.cc.Invoke(ctx, "/token.Auction/CheckStatus", in, out, opts...)
+func (c *managerClient) Coordination(ctx context.Context, in *Coord, opts ...grpc.CallOption) (*Ack, error) {
+	out := new(Ack)
+	err := c.cc.Invoke(ctx, "/token.Manager/Coordination", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *auctionClient) Result(ctx context.Context, in *AuctionResult, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, "/token.Auction/Result", in, out, opts...)
+func (c *managerClient) Bid(ctx context.Context, in *Amount, opts ...grpc.CallOption) (*Ack, error) {
+	out := new(Ack)
+	err := c.cc.Invoke(ctx, "/token.Manager/Bid", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *auctionClient) Update(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Ack_, error) {
-	out := new(Ack_)
-	err := c.cc.Invoke(ctx, "/token.Auction/Update", in, out, opts...)
+func (c *managerClient) Result(ctx context.Context, in *Void, opts ...grpc.CallOption) (*Outcome, error) {
+	out := new(Outcome)
+	err := c.cc.Invoke(ctx, "/token.Manager/Result", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *auctionClient) Heartbeat(ctx context.Context, in *Beat, opts ...grpc.CallOption) (*Ack_, error) {
-	out := new(Ack_)
-	err := c.cc.Invoke(ctx, "/token.Auction/Heartbeat", in, out, opts...)
+func (c *managerClient) Update(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Ack, error) {
+	out := new(Ack)
+	err := c.cc.Invoke(ctx, "/token.Manager/Update", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// AuctionServer is the server API for Auction service.
-// All implementations must embed UnimplementedAuctionServer
+func (c *managerClient) Heartbeat(ctx context.Context, in *Beat, opts ...grpc.CallOption) (*Ack, error) {
+	out := new(Ack)
+	err := c.cc.Invoke(ctx, "/token.Manager/Heartbeat", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ManagerServer is the server API for Manager service.
+// All implementations must embed UnimplementedManagerServer
 // for forward compatibility
-type AuctionServer interface {
-	Election(context.Context, *ElectionRequest) (*Ack_, error)
-	Coordination(context.Context, *Coord) (*Ack_, error)
-	BidOnItem(context.Context, *Bid) (*Ack, error)
-	CheckStatus(context.Context, *Request) (*Status, error)
-	Result(context.Context, *AuctionResult) (*Response, error)
-	Update(context.Context, *Data) (*Ack_, error)
-	Heartbeat(context.Context, *Beat) (*Ack_, error)
-	mustEmbedUnimplementedAuctionServer()
+type ManagerServer interface {
+	Election(context.Context, *ElectionRequest) (*Ack, error)
+	Coordination(context.Context, *Coord) (*Ack, error)
+	Bid(context.Context, *Amount) (*Ack, error)
+	Result(context.Context, *Void) (*Outcome, error)
+	Update(context.Context, *Data) (*Ack, error)
+	Heartbeat(context.Context, *Beat) (*Ack, error)
+	mustEmbedUnimplementedManagerServer()
 }
 
-// UnimplementedAuctionServer must be embedded to have forward compatible implementations.
-type UnimplementedAuctionServer struct {
+// UnimplementedManagerServer must be embedded to have forward compatible implementations.
+type UnimplementedManagerServer struct {
 }
 
-func (UnimplementedAuctionServer) Election(context.Context, *ElectionRequest) (*Ack_, error) {
+func (UnimplementedManagerServer) Election(context.Context, *ElectionRequest) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Election not implemented")
 }
-func (UnimplementedAuctionServer) Coordination(context.Context, *Coord) (*Ack_, error) {
+func (UnimplementedManagerServer) Coordination(context.Context, *Coord) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Coordination not implemented")
 }
-func (UnimplementedAuctionServer) BidOnItem(context.Context, *Bid) (*Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BidOnItem not implemented")
+func (UnimplementedManagerServer) Bid(context.Context, *Amount) (*Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Bid not implemented")
 }
-func (UnimplementedAuctionServer) CheckStatus(context.Context, *Request) (*Status, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckStatus not implemented")
-}
-func (UnimplementedAuctionServer) Result(context.Context, *AuctionResult) (*Response, error) {
+func (UnimplementedManagerServer) Result(context.Context, *Void) (*Outcome, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Result not implemented")
 }
-func (UnimplementedAuctionServer) Update(context.Context, *Data) (*Ack_, error) {
+func (UnimplementedManagerServer) Update(context.Context, *Data) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
-func (UnimplementedAuctionServer) Heartbeat(context.Context, *Beat) (*Ack_, error) {
+func (UnimplementedManagerServer) Heartbeat(context.Context, *Beat) (*Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
 }
-func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
+func (UnimplementedManagerServer) mustEmbedUnimplementedManagerServer() {}
 
-// UnsafeAuctionServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to AuctionServer will
+// UnsafeManagerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ManagerServer will
 // result in compilation errors.
-type UnsafeAuctionServer interface {
-	mustEmbedUnimplementedAuctionServer()
+type UnsafeManagerServer interface {
+	mustEmbedUnimplementedManagerServer()
 }
 
-func RegisterAuctionServer(s grpc.ServiceRegistrar, srv AuctionServer) {
-	s.RegisterService(&Auction_ServiceDesc, srv)
+func RegisterManagerServer(s grpc.ServiceRegistrar, srv ManagerServer) {
+	s.RegisterService(&Manager_ServiceDesc, srv)
 }
 
-func _Auction_Election_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Manager_Election_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ElectionRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuctionServer).Election(ctx, in)
+		return srv.(ManagerServer).Election(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/token.Auction/Election",
+		FullMethod: "/token.Manager/Election",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Election(ctx, req.(*ElectionRequest))
+		return srv.(ManagerServer).Election(ctx, req.(*ElectionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_Coordination_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Manager_Coordination_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Coord)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuctionServer).Coordination(ctx, in)
+		return srv.(ManagerServer).Coordination(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/token.Auction/Coordination",
+		FullMethod: "/token.Manager/Coordination",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Coordination(ctx, req.(*Coord))
+		return srv.(ManagerServer).Coordination(ctx, req.(*Coord))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_BidOnItem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Bid)
+func _Manager_Bid_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Amount)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuctionServer).BidOnItem(ctx, in)
+		return srv.(ManagerServer).Bid(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/token.Auction/BidOnItem",
+		FullMethod: "/token.Manager/Bid",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).BidOnItem(ctx, req.(*Bid))
+		return srv.(ManagerServer).Bid(ctx, req.(*Amount))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_CheckStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
+func _Manager_Result_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Void)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuctionServer).CheckStatus(ctx, in)
+		return srv.(ManagerServer).Result(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/token.Auction/CheckStatus",
+		FullMethod: "/token.Manager/Result",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).CheckStatus(ctx, req.(*Request))
+		return srv.(ManagerServer).Result(ctx, req.(*Void))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_Result_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AuctionResult)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuctionServer).Result(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/token.Auction/Result",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Result(ctx, req.(*AuctionResult))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Auction_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Manager_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Data)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuctionServer).Update(ctx, in)
+		return srv.(ManagerServer).Update(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/token.Auction/Update",
+		FullMethod: "/token.Manager/Update",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Update(ctx, req.(*Data))
+		return srv.(ManagerServer).Update(ctx, req.(*Data))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Manager_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Beat)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuctionServer).Heartbeat(ctx, in)
+		return srv.(ManagerServer).Heartbeat(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/token.Auction/Heartbeat",
+		FullMethod: "/token.Manager/Heartbeat",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Heartbeat(ctx, req.(*Beat))
+		return srv.(ManagerServer).Heartbeat(ctx, req.(*Beat))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Auction_ServiceDesc is the grpc.ServiceDesc for Auction service.
+// Manager_ServiceDesc is the grpc.ServiceDesc for Manager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Auction_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "token.Auction",
-	HandlerType: (*AuctionServer)(nil),
+var Manager_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "token.Manager",
+	HandlerType: (*ManagerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Election",
-			Handler:    _Auction_Election_Handler,
+			Handler:    _Manager_Election_Handler,
 		},
 		{
 			MethodName: "Coordination",
-			Handler:    _Auction_Coordination_Handler,
+			Handler:    _Manager_Coordination_Handler,
 		},
 		{
-			MethodName: "BidOnItem",
-			Handler:    _Auction_BidOnItem_Handler,
-		},
-		{
-			MethodName: "CheckStatus",
-			Handler:    _Auction_CheckStatus_Handler,
+			MethodName: "Bid",
+			Handler:    _Manager_Bid_Handler,
 		},
 		{
 			MethodName: "Result",
-			Handler:    _Auction_Result_Handler,
+			Handler:    _Manager_Result_Handler,
 		},
 		{
 			MethodName: "Update",
-			Handler:    _Auction_Update_Handler,
+			Handler:    _Manager_Update_Handler,
 		},
 		{
 			MethodName: "Heartbeat",
-			Handler:    _Auction_Heartbeat_Handler,
+			Handler:    _Manager_Heartbeat_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "interface.proto",
+}
+
+// ClientClient is the client API for Client service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type ClientClient interface {
+	Heartbeat(ctx context.Context, in *Primary, opts ...grpc.CallOption) (*Reply, error)
+}
+
+type clientClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewClientClient(cc grpc.ClientConnInterface) ClientClient {
+	return &clientClient{cc}
+}
+
+func (c *clientClient) Heartbeat(ctx context.Context, in *Primary, opts ...grpc.CallOption) (*Reply, error) {
+	out := new(Reply)
+	err := c.cc.Invoke(ctx, "/token.Client/Heartbeat", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ClientServer is the server API for Client service.
+// All implementations must embed UnimplementedClientServer
+// for forward compatibility
+type ClientServer interface {
+	Heartbeat(context.Context, *Primary) (*Reply, error)
+	mustEmbedUnimplementedClientServer()
+}
+
+// UnimplementedClientServer must be embedded to have forward compatible implementations.
+type UnimplementedClientServer struct {
+}
+
+func (UnimplementedClientServer) Heartbeat(context.Context, *Primary) (*Reply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
+}
+func (UnimplementedClientServer) mustEmbedUnimplementedClientServer() {}
+
+// UnsafeClientServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ClientServer will
+// result in compilation errors.
+type UnsafeClientServer interface {
+	mustEmbedUnimplementedClientServer()
+}
+
+func RegisterClientServer(s grpc.ServiceRegistrar, srv ClientServer) {
+	s.RegisterService(&Client_ServiceDesc, srv)
+}
+
+func _Client_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Primary)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClientServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/token.Client/Heartbeat",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClientServer).Heartbeat(ctx, req.(*Primary))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Client_ServiceDesc is the grpc.ServiceDesc for Client service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Client_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "token.Client",
+	HandlerType: (*ClientServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Heartbeat",
+			Handler:    _Client_Heartbeat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

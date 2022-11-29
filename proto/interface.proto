@@ -3,37 +3,53 @@ syntax = "proto3";
 package token;
 option go_package = "https://github.com/luczito/auctionhouse;token";
 
-service Auction{
-    rpc Election(ElectionRequest) returns (Ack_){}
-    rpc Coordination(Coord) returns (Ack_){}
-    rpc BidOnItem(Bid) returns (Ack){}
-    rpc CheckStatus(Request) returns (Status){}
-    rpc Result(AuctionResult) returns (Response){}
-    rpc Update(Data) returns (Ack_){}
-    rpc Heartbeat(Beat) returns (Ack_){}
+service Manager{
+    rpc Election(ElectionRequest) returns (Ack){}
+    rpc Coordination(Coord) returns (Ack){}
+
+    rpc Bid(Amount) returns (Ack){}
+    rpc Result(Void) returns (Outcome){}
+    
+    rpc Update(Data) returns (Ack){}
+    rpc Heartbeat(Beat) returns (Ack){}
 }
+
+service Client {
+    rpc Heartbeat (Primary) returns (Reply) {}
+}
+
+message Reply{}
+message Void{}
 message Beat{}
+message ElectionRequest{}
+message Primary{}
+
+message Ack{
+    Status status = 1;
+    string message = 2;
+}
+
+enum Status {
+    FAIL = 0;
+    SUCCESS = 1;
+    EXCEPTION = 2;
+}
 
 message Data{
     CurrentBid currentBid = 1;
     int32 timeRemaining = 2;
-    repeated int32 Clients = 3;
+    repeated string Clients = 3;
 }
 
 message CurrentBid{
-    int32 id = 1;
+    string id = 1;
     int32 amount = 2;
-}
-
-message ElectionRequest{
-    int32 id = 1;
 }
 
 message Coord{
     int32 id = 1;
 }
 
-message Ack_{}
 
 message Bid{
     int32 Userid = 1;
@@ -42,28 +58,19 @@ message Bid{
 }
 
 message Amount{
-    int32 Amount = 1;
-    int32 Id = 2;
-}
-
-message Ack{
-    string Status = 1;
+    int32 value = 1;
 }
 
 message Request{
     int32 ItemId = 1;
 }
 
-message Status{
-    string status = 1;
-}
-
 message AuctionResult{
-    int32 id = 1;
+    string id = 1;
     int32 amount = 2;
 }
 
-message Response{
+message Outcome{
     int32 TimeRemaining = 1;
 
     oneof outcome{
