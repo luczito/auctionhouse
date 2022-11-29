@@ -9,11 +9,13 @@ import (
 	token "github.com/luczito/auctionhouse/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/metadata"
 )
 
 // Manager struct.
 type Manager struct {
+	token.UnimplementedManagerServer
+	Id                  string
 	PrimaryId           string //primary Manager port
 	Clients             map[string]token.ClientClient
 	Managers            map[string]token.ManagerClient
@@ -32,7 +34,7 @@ type Bid struct {
 }
 
 // listens and recieves updates from primary Manager.
-func (m *Manager) Update(ctx context.Context, data *token.Data) (*token.Ack_, error) {
+func (m *Manager) Update(ctx context.Context, data *token.Data) (*token.Ack, error) {
 	log.Printf("Recieved an update for internal data\n")
 
 	m.CurrentBid.id = data.CurrentBid.Id
@@ -53,20 +55,20 @@ func (m *Manager) Update(ctx context.Context, data *token.Data) (*token.Ack_, er
 		m.Clients[addr] = c
 	}
 
-	return &token.Ack_{}, nil
+	return &token.Ack{}, nil
 }
 
 // updates the other Managers in the network
 func (m *Manager) UpdateManagers() error {
 	log.Printf("Sending update to backups\n")
-	addrs := make([]int32, 0, len(m.Clients))
+	addrs := make([]string, 0, len(m.Clients))
 
 	for addr := range m.Clients {
 		addrs = append(addrs, addr)
 	}
 
 	for _, manag := range m.Managers {
-		manag.Update(s.Ctx, &token.Data{
+		manag.Update(m.Ctx, &token.Data{
 			CurrentBid: &token.CurrentBid{
 				Id:     m.CurrentBid.id,
 				Amount: m.CurrentBid.amount,
@@ -95,13 +97,13 @@ func (m *Manager) SendHeartbeat() {
 
 	log.Printf("Sending heartbeat to everyone\n")
 	for _, manag := range m.Managers {
-		_, err := manag.Heartbeat(s.Ctx, &token.Beat{})
+		_, err := manag.Heartbeat(m.Ctx, &token.Beat{})
 		if err != nil {
 			log.Printf("%v", err)
 		}
 	}
 	for _, client := range m.Clients {
-		_, err := client.Heartbeat(s.Ctx, &token.Primary{})
+		_, err := client.Heartbeat(m.Ctx, &token.Primary{})
 		if err != nil {
 			log.Printf("%v", err)
 		}
@@ -123,8 +125,8 @@ func (m *Manager) HeartbeatTimeout(reset <-chan bool, seconds int) {
 		// primary crashed
 		fmt.Println("primary is dead recalling election")
 		log.Println("primary is dead recalling election")
-		delete(s.Managers, s.PrimaryId)
-		s.CallElection()
+		delete(m.Managers, m.PrimaryId)
+		m.CallElection()
 	}
 }
 
@@ -132,12 +134,12 @@ func (m *Manager) HeartbeatTimeout(reset <-chan bool, seconds int) {
 func (m *Manager) MainLoop() {
 	for {
 		fmt.Println("loop running")
-		if s.PrimaryId == s.Id {
+		if m.PrimaryId == m.Id {
 			fmt.Println("leader loop")
-			s.LeaderLoop()
+			m.LeaderLoop()
 		} else {
 			fmt.Println("backup loop")
-			s.BackupLoop()
+			m.BackupLoop()
 		}
 	}
 }
@@ -146,15 +148,15 @@ func (m *Manager) MainLoop() {
 func (m *Manager) LeaderLoop() {
 	log.Printf("Leader loop running\n")
 
-	s.SendCoordination()
+	m.SendCoordination()
 
 	for {
-		if s.Id != s.PrimaryId {
+		if m.Id != m.PrimaryId {
 			log.Printf("No longer primary id breaking.\n")
 			return
 		}
 
-		s.SendHeartbeat()
+		m.SendHeartbeat()
 	}
 }
 
@@ -193,9 +195,8 @@ func (m *Manager) Bid(ctx context.Context, input *token.Amount) (*token.Ack, err
 		m.Clients[addr] = c
 	}
 
-	if input.Amount > m.CurrentBid.amount {
-		m.CurrentBid.amount = input.Amount
-		m.CurrentBid.id = input.Id
+	if input.Value > m.CurrentBid.amount {
+		m.CurrentBid.amount = input.Value
 		message = "Bid accepted as the new highest bid."
 		log.Printf("Bid accepted as the new highest bid.\n")
 		if err := m.UpdateManagers(); err != nil {
@@ -223,23 +224,19 @@ func (m *Manager) Result(ctx context.Context, input *token.Void) (*token.Outcome
 
 	if m.TimeRemaining == 0 {
 		log.Printf("Auction over.\n")
-		reply.Outcome = &token.Outcome_Result{
+		reply.Outcome = &token.Outcome_AuctionResult{
 			AuctionResult: &token.AuctionResult{
-				Id:     m.CurrentBid.id,ActionResult{
 				Id:     m.CurrentBid.id,
 				Amount: m.CurrentBid.amount,
-			,
-			}
+			},
 		}
-	}
 	} else {
 		log.Printf("Auction not over resuming.\n")
-		reply.Outcome = &token.ResponseCurrentBid{
-			CurrentBid: &token.CurrenBid{
+		reply.Outcome = &token.Outcome_CurrentBid{
+			CurrentBid: &token.CurrentBid{
 				Id:     m.CurrentBid.id,
-				Aount: m.CurrentBid.amount,
-			,
-			}
+				Amount: m.CurrentBid.amount,
+			},
 		}
 	}
 	return reply, nil

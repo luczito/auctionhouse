@@ -130,9 +130,9 @@ func (m *Manager) Coordination(ctx context.Context, input *token.Coord) (*token.
 				Amount: m.CurrentBid.amount,
 			},
 			TimeRemaining: m.TimeRemaining,
-			Clients:       addr,
+			Clients:       addrs,
 		})
 	}
 
-	return &token.Ack_{}, nil
+	return &token.Ack{}, nil
 }

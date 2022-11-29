@@ -47,12 +47,12 @@ message CurrentBid{
 }
 
 message Coord{
-    int32 id = 1;
+    string id = 1;
 }
 
 
 message Bid{
-    int32 Userid = 1;
+    string Userid = 1;
     int32 ItemId = 2;
     int32 Amount = 3;
 }
