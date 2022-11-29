@@ -100,7 +100,6 @@ func main() {
 		ip := fmt.Sprintf("127.0.0.1:%v", managerPort)
 
 		conn, err := grpc.DialContext(ctx, ip, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
-		// conn, err := grpc.Dial(fmt.Sprintf(":%v", peerPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithTimeout(1))
 
 		if err != nil {
 			managerPort++
@@ -117,8 +116,6 @@ func main() {
 
 		managerPort++
 	}
-
-	// fmt.Printf("%v\n", m.peers)
 
 	<-time.After(3 * time.Second)
 

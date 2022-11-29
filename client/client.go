@@ -52,13 +52,29 @@ func (c *Client) HeartBeat(ctx context.Context, prim *token.Primary) (*token.Rep
 func main() {
 	address := flag.String("primary", "127.0.0.1:5000", "primary ip")
 	startPort := flag.Int("port", 5000, "port")
+	var maxManagers = flag.Int("managers", 3, "Max manager count")
 
 	flag.Parse()
 
 	var port = int32(*startPort)
+	var err error
+	var list net.Listener
+
+	for i := 0; i < *maxManagers; i++ {
+		list, err = net.Listen("tcp", fmt.Sprintf(":%v", port))
+
+		if err == nil {
+			break
+		}
+
+		port++
+	}
+
+	if err != nil {
+		log.Fatalln("Could not find port(20 tries).")
+	}
 
 	ip := fmt.Sprintf("127.0.0.1:%d", port)
-
 	ctx, _ := context.WithCancel(context.Background())
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("address", ip))
 
@@ -72,7 +88,7 @@ func main() {
 	log.SetOutput(log_)
 
 	//dial up the primary manager
-	conn, err := grpc.DialContext(ctx, *address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.DialContext(ctx, ip, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("Failed to connect to client: %v", err)
 	}
@@ -84,7 +100,7 @@ func main() {
 		ctx:           ctx,
 	}
 
-	list, err := net.Listen("tcp", ip)
+	list, err = net.Listen("tcp", ip)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
@@ -107,7 +123,6 @@ func main() {
 
 	scanner := bufio.NewScanner(os.Stdin)
 
-	fmt.Println("Enter a command")
 	for scanner.Scan() {
 		//read in command
 		command := scanner.Text()
