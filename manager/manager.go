@@ -93,7 +93,6 @@ func (m *Manager) Heartbeat(ctx context.Context, beat *token.Beat) (*token.Ack, 
 
 // func to send a heartbeat to all Managers AND clients in the network.
 func (m *Manager) SendHeartbeat() {
-	time.Sleep(time.Second * 5)
 
 	log.Printf("Sending heartbeat to everyone\n")
 	for _, manag := range m.Managers {
@@ -127,50 +126,6 @@ func (m *Manager) HeartbeatTimeout(reset <-chan bool, seconds int) {
 		log.Println("primary is dead recalling election")
 		delete(m.Managers, m.PrimaryId)
 		m.CallElection()
-	}
-}
-
-// main loop.
-func (m *Manager) MainLoop() {
-	for {
-		fmt.Println("loop running")
-		if m.PrimaryId == m.Id {
-			fmt.Println("leader loop")
-			m.LeaderLoop()
-		} else {
-			fmt.Println("backup loop")
-			m.BackupLoop()
-		}
-	}
-}
-
-// loop for the primary Manager.
-func (m *Manager) LeaderLoop() {
-	log.Printf("Leader loop running\n")
-
-	m.SendCoordination()
-
-	for {
-		if m.Id != m.PrimaryId {
-			log.Printf("No longer primary id breaking.\n")
-			return
-		}
-
-		m.SendHeartbeat()
-	}
-}
-
-// loop for the backup Managers.
-func (m *Manager) BackupLoop() {
-	log.Printf("Backup loop running\n")
-
-	for {
-		if m.Id == m.PrimaryId {
-			log.Printf("id is primary id, breaking out of the loop\n")
-			m.TimeoutHeartbeat <- true
-			return
-		}
-		m.HeartbeatTimeout(m.TimeoutHeartbeat, 5)
 	}
 }
 
@@ -240,4 +195,45 @@ func (m *Manager) Result(ctx context.Context, input *token.Void) (*token.Outcome
 		}
 	}
 	return reply, nil
+}
+
+// main loop.
+func (m *Manager) MainLoop() {
+	for {
+		if m.PrimaryId == m.Id {
+			m.LeaderLoop()
+		} else {
+			m.BackupLoop()
+		}
+	}
+}
+
+// loop for the primary Manager.
+func (m *Manager) LeaderLoop() {
+	log.Printf("Leader loop running\n")
+
+	m.SendCoordination()
+
+	for {
+		if m.Id != m.PrimaryId {
+			log.Printf("No longer primary id breaking.\n")
+			return
+		}
+
+		m.SendHeartbeat()
+	}
+}
+
+// loop for the backup Managers.
+func (m *Manager) BackupLoop() {
+	log.Printf("Backup loop running\n")
+
+	for {
+		if m.Id == m.PrimaryId {
+			log.Printf("id is primary id, breaking out of the loop\n")
+			m.TimeoutHeartbeat <- true
+			return
+		}
+		m.HeartbeatTimeout(m.TimeoutHeartbeat, 5)
+	}
 }

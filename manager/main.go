@@ -46,15 +46,15 @@ func main() {
 	}
 
 	ip := fmt.Sprintf("127.0.0.1:%d", port)
+	fmt.Println(ip)
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("address", ip))
 
 	// set Log output, one log for each node
 	f, err := os.OpenFile(fmt.Sprintf("manager-log-%s.txt", ip), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Fatalf("error opening file: %v", err)
+		log.Fatalf("error opening file: %v\n", err)
 	}
 	defer f.Close()
-
 	log.SetOutput(f)
 
 	//create a server for this proccess
