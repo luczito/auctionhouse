@@ -25,7 +25,7 @@ type Client struct {
 	ctx           context.Context
 }
 
-func (c *Client) HeartBeat(ctx context.Context, prim *token.Primary) (*token.Reply, error) {
+func (c *Client) Heartbeat(ctx context.Context, prim *token.Primary) (*token.Reply, error) {
 	var addr string
 
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
@@ -50,33 +50,16 @@ func (c *Client) HeartBeat(ctx context.Context, prim *token.Primary) (*token.Rep
 }
 
 func main() {
-	address := flag.String("primary", "127.0.0.1:5000", "primary ip")
+	address := flag.String("primary", "127.0.0.1:5002", "primary ip")
 	startPort := flag.Int("port", 5000, "port")
-	var maxManagers = flag.Int("managers", 3, "Max manager count")
 
 	flag.Parse()
 
-	var port = int32(*startPort)
-	var err error
-	var list net.Listener
-
-	for i := 0; i < *maxManagers; i++ {
-		list, err = net.Listen("tcp", fmt.Sprintf(":%v", port))
-
-		if err == nil {
-			break
-		}
-
-		port++
-	}
-
-	if err != nil {
-		log.Fatalln("Could not find port(20 tries).")
-	}
-
-	ip := fmt.Sprintf("127.0.0.1:%d", port)
+	ip := fmt.Sprintf("127.0.0.1:%d", *startPort)
 	ctx, _ := context.WithCancel(context.Background())
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("address", ip))
+	fmt.Println(startPort)
+	fmt.Println(ip)
 
 	//setup logger for client
 	log_, err := os.OpenFile(fmt.Sprintf("client-log-%s.txt", ip), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -88,7 +71,7 @@ func main() {
 	log.SetOutput(log_)
 
 	//dial up the primary manager
-	conn, err := grpc.DialContext(ctx, ip, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	conn, err := grpc.DialContext(ctx, *address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("Failed to connect to client: %v", err)
 	}
@@ -100,7 +83,7 @@ func main() {
 		ctx:           ctx,
 	}
 
-	list, err = net.Listen("tcp", ip)
+	list, err := net.Listen("tcp", ip)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
@@ -125,6 +108,7 @@ func main() {
 
 	for scanner.Scan() {
 		//read in command
+
 		command := scanner.Text()
 
 		//split command into args

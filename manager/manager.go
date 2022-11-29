@@ -42,7 +42,7 @@ func (m *Manager) Update(ctx context.Context, data *token.Data) (*token.Ack, err
 	m.TimeRemaining = data.TimeRemaining
 
 	for _, addr := range data.Clients {
-		conn, err := grpc.Dial(fmt.Sprintf(":%v", addr), grpc.WithInsecure(), grpc.WithBlock())
+		conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 
 		if err != nil {
 			continue
@@ -80,6 +80,17 @@ func (m *Manager) UpdateManagers() error {
 	return nil
 }
 
+func (m *Manager) NotifyClients() error {
+	for addr, client := range m.Clients {
+		var _, err = client.Heartbeat(m.Ctx, &token.Primary{})
+
+		if err != nil {
+			delete(m.Clients, addr)
+		}
+	}
+	return nil
+}
+
 // func to listen for a heartbeat from the primary Manager.
 func (m *Manager) Heartbeat(ctx context.Context, beat *token.Beat) (*token.Ack, error) {
 	log.Printf("Recieved heartbeat from primary, sending reply\n")
@@ -95,15 +106,17 @@ func (m *Manager) Heartbeat(ctx context.Context, beat *token.Beat) (*token.Ack, 
 func (m *Manager) SendHeartbeat() {
 
 	log.Printf("Sending heartbeat to everyone\n")
-	for _, manag := range m.Managers {
+	for id, manag := range m.Managers {
 		_, err := manag.Heartbeat(m.Ctx, &token.Beat{})
 		if err != nil {
+			delete(m.Managers, id)
 			log.Printf("%v", err)
 		}
 	}
-	for _, client := range m.Clients {
+	for id, client := range m.Clients {
 		_, err := client.Heartbeat(m.Ctx, &token.Primary{})
 		if err != nil {
+			delete(m.Clients, id)
 			log.Printf("%v", err)
 		}
 	}
@@ -152,6 +165,8 @@ func (m *Manager) Bid(ctx context.Context, input *token.Amount) (*token.Ack, err
 
 	if input.Value > m.CurrentBid.amount {
 		m.CurrentBid.amount = input.Value
+		m.CurrentBid.id = addr
+		status = *token.Status_SUCCESS.Enum()
 		message = "Bid accepted as the new highest bid."
 		log.Printf("Bid accepted as the new highest bid.\n")
 		if err := m.UpdateManagers(); err != nil {
@@ -160,6 +175,7 @@ func (m *Manager) Bid(ctx context.Context, input *token.Amount) (*token.Ack, err
 		}
 	} else {
 		log.Printf("Bid rejected, lower than the current highest bid.\n")
+		status = *token.Status_EXCEPTION.Enum()
 		message = "Bid rejected, lower than the current highest bid."
 	}
 

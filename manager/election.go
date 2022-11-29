@@ -80,7 +80,7 @@ func (m *Manager) SendCoordination() {
 
 		if err != nil {
 			log.Printf("Something went wrong with Manager: %v, %v\n", id, err)
-			//delete(s.Managers, id)
+			delete(m.Managers, id)
 		}
 	}
 }
